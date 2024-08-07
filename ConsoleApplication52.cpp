@@ -89,8 +89,72 @@ void insertToHashTable(struct Hash* hashTable, char* newDestination, float newWe
     hashTable->table[index] = InsertElementIntoBST(hashTable->table[index], newDestination, newWeight, newValuation);//insert to hash table
 }
 
+void displayAllParcels(struct Node* root)
+
+{
+    if (root != NULL)
+    {
+        displayAllParcels(root->left);
+        printf("Destination: % s, weight : % .2f, valuation : % .2f\n", root->destination, root->weight, root->valuation);
+        displayAllParcels(root->right);
+    }
+}
+
+void displayParcelByWeight(struct Node* root, int weight,int isHigher)
+{
+    if (root != NULL) 
+    {
+        displayParcelByWeight(root->left, weight, isHigher);
+        if ((isHigher && root->weight > weight) || (!isHigher && root->weight > weight))
+        {
+            printf("Destination: % s, weight : % .2f, valuation : % .2f\n", root->destination, root->weight, root->valuation);
+        }
+        displayParcelByWeight(root->right, weight, isHigher);
+    }
+}
+
+void calculateTotalLoadAndValuation(struct Node* root, float* totalWeight, float* totalValuation) {
+    if (root != NULL) {
+        calculateTotalLoadAndValuation(root->left, totalWeight, totalValuation);
+        *totalWeight += root->weight;
+        *totalValuation += root->valuation;
+        calculateTotalLoadAndValuation(root->right, totalWeight, totalValuation);
+    }
+}
+
+void findCheapestAndExpensiveFlight(struct Node* root, struct Node** cheapest, struct Node** expensive)
+{
+    if (root != NULL) 
+    {
+        if (*cheapest == NULL || root->valuation < (*cheapest)->valuation) {
+            *cheapest = root;
+        }
+        if (*expensive == NULL || root->valuation > (*expensive)->valuation) {
+            *expensive = root;
+        }
+        findCheapestAndExpensiveFlight(root->left, cheapest, expensive);
+        findCheapestAndExpensiveFlight(root->right, cheapest, expensive);
+    }
+}
+
+void findLightesAndHeaviestFlight(struct Node* root, struct Node** lightest, struct Node** heaviest)
+{
+    if (root != NULL)
+    {
+        if (*lightest == NULL || root->valuation < (*lightest)->valuation) {
+            *lightest = root;
+        }
+        if (*heaviest == NULL || root->valuation > (*heaviest)->valuation) {
+            *heaviest = root;
+        }
+        findCheapestAndExpensiveFlight(root->left, lightest, heaviest);
+        findCheapestAndExpensiveFlight(root->right, lightest, heaviest);
+    }
+}
 
 int main(void) {
+    char destination[kMaxName];
+    float weight, valuation;
     FILE* pFile = NULL;
     struct Hash* hashTable = InitializeHashTable();
     if (hashTable == NULL) {
@@ -107,6 +171,13 @@ int main(void) {
     char list[kMaxList] = { 0 };
     while (fgets(list, sizeof(list), pFile) != NULL) {
         list[strcspn(list, "\n")] = '\0';
+
+        if(sscanf(list, "%20[^,], %f, %f", destination, &weight, &valuation) != 3)
+        {
+            printf("Error parsing line: %s\n", list);
+            continue;
+        }
+        insertToHashTable(hashTable, destination, weight, valuation);
     }
 
     if (feof(pFile)) {//checking fgets errors
@@ -123,7 +194,23 @@ int main(void) {
         printf("Can't close the file\n");
         return -1;
     }
-    printf("file closed successfullt");
+    printf("file closed successfullt\n\n");
+
+  /*  while (true)
+    {
+        printf("\nMenu:\n");
+        printf("1. Enter country name and display all the parcels details\n");
+        printf("2. Enter country and weight pair\n");
+        printf("3. Display the total parcel load and valuation for the country\n");
+        printf("4. Enter the country name and display cheapest and most expensive parcel’s details\n");
+        printf("5. Enter the country name and display lightest and heaviest parcel for the country\n");
+        printf("6. Exit the application\n");
+        printf("Enter your choice: ");
+        scanf("%d", &choice);
+
+
+    }*/
+
 
     return 0;
 }
