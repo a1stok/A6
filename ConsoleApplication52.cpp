@@ -145,19 +145,27 @@ int main(void) {
             country[strcspn(country, "\n")] = '\0';
             printf("Enter weight: ");
             if (scanf("%f", &weight) <= 0) {
-                printf("Invalid weight please try again\n");
-                clearInputBuffer();
+                printf("Invalid weight. Please try again.\n");
+                clearInputBuffer();  // Clear input buffer after invalid input
             }
             else {
-                foundNode = SearchElementInBST(hashTable->table[hash((unsigned char*)country) % kBucketSize], country);
-                if (foundNode != NULL) {
-                    printf("Parcels lighter than %.2f:\n", weight);
-                    displayParcelByWeight(foundNode, weight, 1);
-                    printf("Parcels heavier than %.2f:\n", weight);
-                    displayParcelByWeight(foundNode, weight, 0);
+                if (weight < 100 || weight > 50000) {// Verify if the range of weight input is valid
+                    printf("Weight is out of range.\n");
+                    clearInputBuffer();
                 }
                 else {
-                    printf("Country not found.\n");
+                    clearInputBuffer();
+
+                    foundNode = SearchElementInBST(hashTable->table[hash((unsigned char*)country) % kBucketSize], country);
+                    if (foundNode != NULL) {
+                        printf("Parcels lighter than %.2f:\n", weight);
+                        displayParcelByWeight(foundNode, weight, 1);
+                        printf("Parcels heavier than %.2f:\n", weight);
+                        displayParcelByWeight(foundNode, weight, 0);
+                    }
+                    else {
+                        printf("Country not found.\n");
+                    }
                 }
             }
             break;
