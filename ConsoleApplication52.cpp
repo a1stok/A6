@@ -105,7 +105,7 @@ void displayParcelByWeight(struct Node* root, int weight,int isHigher)
     if (root != NULL) 
     {
         displayParcelByWeight(root->left, weight, isHigher);
-        if ((isHigher && root->weight > weight) || (!isHigher && root->weight > weight))
+        if ((isHigher && root->weight < weight) || (!isHigher && root->weight > weight))
         {
             printf("Destination: % s, weight : % .2f, valuation : % .2f\n", root->destination, root->weight, root->valuation);
         }
@@ -141,63 +141,93 @@ void findLightesAndHeaviestFlight(struct Node* root, struct Node** lightest, str
 {
     if (root != NULL)
     {
-        if (*lightest == NULL || root->valuation < (*lightest)->valuation) {
+        if (*lightest == NULL || root->weight < (*lightest)->weight) {
             *lightest = root;
         }
-        if (*heaviest == NULL || root->valuation > (*heaviest)->valuation) {
+        if (*heaviest == NULL || root->weight > (*heaviest)->weight) {
             *heaviest = root;
         }
-        findCheapestAndExpensiveFlight(root->left, lightest, heaviest);
-        findCheapestAndExpensiveFlight(root->right, lightest, heaviest);
+        findLightesAndHeaviestFlight(root->left, lightest, heaviest);
+        findLightesAndHeaviestFlight(root->right, lightest, heaviest);
     }
 }
 
+void freeTree(struct Node* root) {
+    if (root != NULL) {
+        freeTree(root->left);
+        freeTree(root->right);
+        free(root->destination);
+        free(root);
+    }
+}
+
+void freeHashTable(struct Hash* hashTable) {
+    for (int i = 0; i < kBucketSize; i++) {
+        freeTree(hashTable->table[i]);
+    }
+    free(hashTable);
+}
+
+
 int main(void) {
+    // Variable declarations
     char destination[kMaxName];
+    char country[kMaxName];
+    char list[kMaxList] = { 0 };
     float weight, valuation;
+    float totalWeight = 0;
+    float totalValuation = 0;
+    int choice;
     FILE* pFile = NULL;
+    struct Node* lightest = NULL;
+    struct Node* heaviest = NULL;
+    struct Node* cheapest = NULL;
+    struct Node* mostExpensive = NULL;
     struct Hash* hashTable = InitializeHashTable();
+
+    // Initialize hash table
     if (hashTable == NULL) {
         printf("Failed to initialize hash table.\n");
         return -1;
     }
 
+    // Open file
     pFile = fopen("couriers.txt", "r");
     if (pFile == NULL) {
         printf("Can't open the file\n");
         return -1;
     }
 
-    char list[kMaxList] = { 0 };
+    // Read data from the file
     while (fgets(list, sizeof(list), pFile) != NULL) {
         list[strcspn(list, "\n")] = '\0';
 
-        if(sscanf(list, "%20[^,], %f, %f", destination, &weight, &valuation) != 3)
-        {
+        if (sscanf(list, "%20[^,], %f, %f", destination, &weight, &valuation) != 3) {
             printf("Error parsing line: %s\n", list);
             continue;
         }
         insertToHashTable(hashTable, destination, weight, valuation);
     }
 
-    if (feof(pFile)) {//checking fgets errors
-        //End of file reached
-        printf("End ofr23wdeched.\n");
+    // Check for file read errors
+    if (feof(pFile)) {
+        // End of file reached
+        printf("End of file reached.\n");
     }
     else if (ferror(pFile)) {
-        //An error occurred
+        // An error occurred
         perror("Error reading from file\n");
     }
 
-
-    if (fclose(pFile) != NULL) {
+    // Close the file
+    if (fclose(pFile) != 0) {
         printf("Can't close the file\n");
         return -1;
     }
-    printf("file closed successfullt\n\n");
+    printf("File closed successfully\n\n");
 
-  /*  while (true)
-    {
+    // Main loop for user interaction
+    while (true) {
         printf("\nMenu:\n");
         printf("1. Enter country name and display all the parcels details\n");
         printf("2. Enter country and weight pair\n");
@@ -207,10 +237,72 @@ int main(void) {
         printf("6. Exit the application\n");
         printf("Enter your choice: ");
         scanf("%d", &choice);
+        switch (choice) {
+        case 1:
+            printf("Enter country name: ");
+            scanf("%20s", country);
+            displayAllParcels(hashTable->table[hash((unsigned char*)country) % kBucketSize]);
+            break;
 
+        case 2:
+            printf("Enter country name: ");
+            scanf("%20s", country);
+            printf("Enter weight: ");
+            scanf("%f", &weight);
+            printf("Parcels heavier than %.2f:\n", weight);
+            displayParcelByWeight(hashTable->table[hash((unsigned char*)country) % kBucketSize], weight, 1);
+            printf("Parcels lighter than %.2f:\n", weight);
+            displayParcelByWeight(hashTable->table[hash((unsigned char*)country) % kBucketSize], weight, 0);
+            break;
 
-    }*/
+        case 3:
+            printf("Enter country name: ");
+            scanf("%20s", country);
+            totalWeight = 0; // Reset totalWeight for each calculation
+            totalValuation = 0; // Reset totalValuation for each calculation
+            calculateTotalLoadAndValuation(hashTable->table[hash((unsigned char*)country) % kBucketSize], &totalWeight, &totalValuation);
+            printf("Total parcel load: %.2f, Total parcel valuation: %.2f\n", totalWeight, totalValuation);
+            break;
 
+        case 4:
+            printf("Enter country name: ");
+            scanf("%20s", country);
+            cheapest = NULL; // Reset for each calculation
+            mostExpensive = NULL; // Reset for each calculation
+            findCheapestAndExpensiveFlight(hashTable->table[hash((unsigned char*)country) % kBucketSize], &cheapest, &mostExpensive);
+            if (cheapest != NULL && mostExpensive != NULL) {
+                printf("Cheapest parcel: Destination: %s, Weight: %.2f, Valuation: %.2f\n", cheapest->destination, cheapest->weight, cheapest->valuation);
+                printf("Most expensive parcel: Destination: %s, Weight: %.2f, Valuation: %.2f\n", mostExpensive->destination, mostExpensive->weight, mostExpensive->valuation);
+            }
+            else {
+                printf("No parcels found for the given country.\n");
+            }
+            break;
+
+        case 5:
+            printf("Enter country name: ");
+            scanf("%20s", country);
+            lightest = NULL; // Reset for each calculation
+            heaviest = NULL; // Reset for each calculation
+            findLightesAndHeaviestFlight(hashTable->table[hash((unsigned char*)country) % kBucketSize], &lightest, &heaviest);
+            if (lightest != NULL && heaviest != NULL) {
+                printf("Lightest parcel: Destination: %s, Weight: %.2f, Valuation: %.2f\n", lightest->destination, lightest->weight, lightest->valuation);
+                printf("Heaviest parcel: Destination: %s, Weight: %.2f, Valuation: %.2f\n", heaviest->destination, heaviest->weight, heaviest->valuation);
+            }
+            else {
+                printf("No parcels found for the given country.\n");
+            }
+            break;
+
+        case 6:
+            freeHashTable(hashTable);
+            printf("Exiting application.\n");
+            return 0;
+
+        default:
+            printf("Invalid choice. Please try again.\n");
+        }
+    }
 
     return 0;
 }
