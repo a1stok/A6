@@ -6,6 +6,7 @@
 const int kBucketSize = 127;
 const int kMaxName = 21;
 const int kMaxList = 2000;
+const int kUnsignedHash = 5381;
 
 struct Node {
     char* destination;//have to allocate the memory
@@ -43,7 +44,7 @@ struct Node* CreateNode(char* newDestination, float newWeight, float newValuatio
 }
 
 unsigned long hash(unsigned char* str) {//using "djb2" function to generate hash, from Module-09
-    unsigned long hash = 5381;
+    unsigned long hash = kUnsignedHash;
     int c = 0;
     while ((c = *str++) != '\0') {
         hash = ((hash << 5) + hash) + c;
@@ -67,7 +68,7 @@ struct Hash* InitializeHashTable(void) {
 }
 
 struct Node* InsertElementIntoBST(Node* parent, char* newDestination, float newWeight, float newValuation) {
-    if (parent == NULL) { // This means your tree is empty, create a new node and treat it as root
+    if (parent == NULL) { //if tree is empty
         return CreateNode(newDestination, newWeight, newValuation);
     }
 
@@ -84,26 +85,25 @@ struct Node* InsertElementIntoBST(Node* parent, char* newDestination, float newW
 
 void insertToHashTable(struct Hash* hashTable, char* newDestination, float newWeight, float newValuation) {
     int index = hash((unsigned char*)newDestination) % kBucketSize;
-    //struct node* newNode = createNode(name);
-
     hashTable->table[index] = InsertElementIntoBST(hashTable->table[index], newDestination, newWeight, newValuation);//insert to hash table
 }
 
-void displayAllParcels(struct Node* root)
-
-{
-    if (root != NULL)
-    {
+void displayAllParcels(struct Node* root) {
+    if (root == NULL) {
+        return;
+    }
+    else {
         displayAllParcels(root->left);
         printf("Destination: % s, weight : % .2f, valuation : % .2f\n", root->destination, root->weight, root->valuation);
         displayAllParcels(root->right);
     }
 }
 
-void displayParcelByWeight(struct Node* root, int weight,int isHigher)
-{
-    if (root != NULL) 
-    {
+void displayParcelByWeight(struct Node* root, int weight, int isHigher) {
+    if (root == NULL) {
+        return;
+    }
+    else {
         displayParcelByWeight(root->left, weight, isHigher);
         if ((isHigher && root->weight < weight) || (!isHigher && root->weight > weight))
         {
@@ -114,7 +114,10 @@ void displayParcelByWeight(struct Node* root, int weight,int isHigher)
 }
 
 void calculateTotalLoadAndValuation(struct Node* root, float* totalWeight, float* totalValuation) {
-    if (root != NULL) {
+    if (root == NULL) {
+        return;
+    }
+    else {
         calculateTotalLoadAndValuation(root->left, totalWeight, totalValuation);
         *totalWeight += root->weight;
         *totalValuation += root->valuation;
@@ -122,10 +125,11 @@ void calculateTotalLoadAndValuation(struct Node* root, float* totalWeight, float
     }
 }
 
-void findCheapestAndExpensiveFlight(struct Node* root, struct Node** cheapest, struct Node** expensive)
-{
-    if (root != NULL) 
-    {
+void findCheapestAndExpensiveFlight(struct Node* root, struct Node** cheapest, struct Node** expensive) {
+    if (root == NULL) {
+        return;
+    }
+    else {
         if (*cheapest == NULL || root->valuation < (*cheapest)->valuation) {
             *cheapest = root;
         }
@@ -137,10 +141,11 @@ void findCheapestAndExpensiveFlight(struct Node* root, struct Node** cheapest, s
     }
 }
 
-void findLightesAndHeaviestFlight(struct Node* root, struct Node** lightest, struct Node** heaviest)
-{
-    if (root != NULL)
-    {
+void findLightesAndHeaviestFlight(struct Node* root, struct Node** lightest, struct Node** heaviest) {
+    if (root == NULL) {
+        return;
+    }
+    else {
         if (*lightest == NULL || root->weight < (*lightest)->weight) {
             *lightest = root;
         }
@@ -153,7 +158,10 @@ void findLightesAndHeaviestFlight(struct Node* root, struct Node** lightest, str
 }
 
 void freeTree(struct Node* root) {
-    if (root != NULL) {
+    if (root == NULL) {
+        return;
+    }
+    else {
         freeTree(root->left);
         freeTree(root->right);
         free(root->destination);
@@ -168,16 +176,40 @@ void freeHashTable(struct Hash* hashTable) {
     free(hashTable);
 }
 
+void clearInputBuffer() {//removing any leftover character buffer
+    int c = 0;
+    while ((c = getchar()) != '\n' && c != EOF);
+}
+
+struct Node* SearchElementInBST(struct Node* root, const char* destinationToSearch) {
+    if (root == NULL) {
+        return NULL;
+    }
+
+    int comparison = strcmp(destinationToSearch, root->destination);
+
+    if (comparison == 0) {
+        return root;
+    }
+    else if (comparison < 0) {
+        return SearchElementInBST(root->left, destinationToSearch);
+    }
+    else {
+        return SearchElementInBST(root->right, destinationToSearch);
+    }
+}
+
 
 int main(void) {
     // Variable declarations
-    char destination[kMaxName];
-    char country[kMaxName];
+    char destination[kMaxName] = { 0 };
+    char country[kMaxName] = { 0 };
     char list[kMaxList] = { 0 };
-    float weight, valuation;
-    float totalWeight = 0;
-    float totalValuation = 0;
-    int choice;
+    float weight = 0.0;
+    float valuation = 0.0;
+    float totalWeight = 0.0;
+    float totalValuation = 0.0;
+    int choice = 0;
     FILE* pFile = NULL;
     struct Node* lightest = NULL;
     struct Node* heaviest = NULL;
@@ -236,61 +268,108 @@ int main(void) {
         printf("5. Enter the country name and display lightest and heaviest parcel for the country\n");
         printf("6. Exit the application\n");
         printf("Enter your choice: ");
-        scanf("%d", &choice);
+        if (scanf("%d", &choice) != 1) {
+            printf("Invalid weight please try again\n");
+            clearInputBuffer();
+            continue;
+        }
+
+        clearInputBuffer();
+        // Initialize foundNode here
+        struct Node* foundNode = NULL;
+
         switch (choice) {
         case 1:
             printf("Enter country name: ");
-            scanf("%20s", country);
-            displayAllParcels(hashTable->table[hash((unsigned char*)country) % kBucketSize]);
+            fgets(country, kMaxName, stdin);
+            country[strcspn(country, "\n")] = '\0';
+            foundNode = SearchElementInBST(hashTable->table[hash((unsigned char*)country) % kBucketSize], country);
+            if (foundNode != NULL) {
+                displayAllParcels(foundNode);
+            }
+            else {
+                printf("Country not found.\n");
+            }
             break;
 
         case 2:
             printf("Enter country name: ");
-            scanf("%20s", country);
+            fgets(country, kMaxName, stdin);
+            country[strcspn(country, "\n")] = '\0';
             printf("Enter weight: ");
-            scanf("%f", &weight);
-            printf("Parcels heavier than %.2f:\n", weight);
-            displayParcelByWeight(hashTable->table[hash((unsigned char*)country) % kBucketSize], weight, 1);
+            if (scanf("%f", &weight) <= 0) {
+                printf("Invalid weight please try again\n");
+                clearInputBuffer();
+            }
             printf("Parcels lighter than %.2f:\n", weight);
-            displayParcelByWeight(hashTable->table[hash((unsigned char*)country) % kBucketSize], weight, 0);
+            foundNode = SearchElementInBST(hashTable->table[hash((unsigned char*)country) % kBucketSize], country);
+            if (foundNode != NULL) {
+                displayParcelByWeight(foundNode, weight, 1);
+                printf("Parcels heavier than %.2f:\n", weight);
+                displayParcelByWeight(foundNode, weight, 0);
+            }
+            else {
+                printf("Country not found.\n");
+            }
             break;
 
         case 3:
             printf("Enter country name: ");
-            scanf("%20s", country);
+            fgets(country, kMaxName, stdin);
+            country[strcspn(country, "\n")] = '\0';
             totalWeight = 0; // Reset totalWeight for each calculation
             totalValuation = 0; // Reset totalValuation for each calculation
-            calculateTotalLoadAndValuation(hashTable->table[hash((unsigned char*)country) % kBucketSize], &totalWeight, &totalValuation);
-            printf("Total parcel load: %.2f, Total parcel valuation: %.2f\n", totalWeight, totalValuation);
+            foundNode = SearchElementInBST(hashTable->table[hash((unsigned char*)country) % kBucketSize], country);
+            if (foundNode != NULL) {
+                calculateTotalLoadAndValuation(foundNode, &totalWeight, &totalValuation);
+                printf("Total parcel load: %.2f, Total parcel valuation: %.2f\n", totalWeight, totalValuation);
+            }
+            else {
+                printf("Country not found.\n");
+            }
             break;
 
         case 4:
             printf("Enter country name: ");
-            scanf("%20s", country);
+            fgets(country, kMaxName, stdin);
+            country[strcspn(country, "\n")] = '\0';
             cheapest = NULL; // Reset for each calculation
             mostExpensive = NULL; // Reset for each calculation
-            findCheapestAndExpensiveFlight(hashTable->table[hash((unsigned char*)country) % kBucketSize], &cheapest, &mostExpensive);
-            if (cheapest != NULL && mostExpensive != NULL) {
-                printf("Cheapest parcel: Destination: %s, Weight: %.2f, Valuation: %.2f\n", cheapest->destination, cheapest->weight, cheapest->valuation);
-                printf("Most expensive parcel: Destination: %s, Weight: %.2f, Valuation: %.2f\n", mostExpensive->destination, mostExpensive->weight, mostExpensive->valuation);
+            foundNode = SearchElementInBST(hashTable->table[hash((unsigned char*)country) % kBucketSize], country);
+            if (foundNode != NULL) {
+                findCheapestAndExpensiveFlight(foundNode, &cheapest, &mostExpensive);
+                if (cheapest != NULL && mostExpensive != NULL) {
+                    printf("Cheapest parcel: Destination: %s, Weight: %.2f, Valuation: %.2f\n", cheapest->destination, cheapest->weight, cheapest->valuation);
+                    printf("Most expensive parcel: Destination: %s, Weight: %.2f, Valuation: %.2f\n", mostExpensive->destination, mostExpensive->weight, mostExpensive->valuation);
+                }
+                else {
+                    printf("No parcels found for the given country.\n");
+                }
             }
             else {
-                printf("No parcels found for the given country.\n");
+                printf("Country not found.\n");
             }
             break;
 
         case 5:
             printf("Enter country name: ");
-            scanf("%20s", country);
+            fgets(country, kMaxName, stdin);
+            country[strcspn(country, "\n")] = '\0';
             lightest = NULL; // Reset for each calculation
             heaviest = NULL; // Reset for each calculation
-            findLightesAndHeaviestFlight(hashTable->table[hash((unsigned char*)country) % kBucketSize], &lightest, &heaviest);
-            if (lightest != NULL && heaviest != NULL) {
-                printf("Lightest parcel: Destination: %s, Weight: %.2f, Valuation: %.2f\n", lightest->destination, lightest->weight, lightest->valuation);
-                printf("Heaviest parcel: Destination: %s, Weight: %.2f, Valuation: %.2f\n", heaviest->destination, heaviest->weight, heaviest->valuation);
+            foundNode = SearchElementInBST(hashTable->table[hash((unsigned char*)country) % kBucketSize], country);
+            if (foundNode != NULL) {
+                findLightesAndHeaviestFlight(foundNode, &lightest, &heaviest);
+                if (lightest != NULL && heaviest != NULL) {
+                    printf("Lightest parcel: Destination: %s, Weight: %.2f, Valuation: %.2f\n", lightest->destination, lightest->weight, lightest->valuation);
+                    printf("Heaviest parcel: Destination: %s, Weight: %.2f, Valuation: %.2f\n", heaviest->destination, heaviest->weight, heaviest->valuation);
+                }
+                else {
+                    printf("No parcels found for the given country.\n");
+                }
             }
             else {
-                printf("No parcels found for the given country.\n");
+                printf("Country not found.\n");
             }
             break;
 
